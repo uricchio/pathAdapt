@@ -15,3 +15,5 @@ plB
 
 plot_grid(plA, plB,labels=c("A","B"),rel_widths=c(1.4,1))
 ggsave("~/Desktop/MIRA/eco-evo-model.png", height=3,width=7.4)
+
+
