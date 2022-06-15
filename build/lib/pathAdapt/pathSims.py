@@ -13,16 +13,13 @@ from collections import defaultdict
 # to do: fix the beta in homozygous ind, which is reduced too much even when the tradeoff is very weak
 
 """
-A class for simulating single epidemics
+A class for simulating density-dependent epidemics and their effect on differentiation rate 
 
 The idea is to:
     1.  assume a population at equilibirum
     2.  sample a resistance allele from the deleterious allele spectrum
     3.  suppose this allele is now subject to mortality/transmission/recovery tradeoff
     4.  compute change in fixation rate given outcome of epidemic
-
-still need to:
-    1. weight by gamma dist of selection coefficients
 """
 
 class SimulateEpi():
@@ -30,6 +27,7 @@ class SimulateEpi():
     def __init__(self,N=1000,I0=1,I1=0,I2=0,R0=0,R1=0,R2=0,S0=998,S1=1,beta=0.1,mu=0.001,rec=0.003,L=1,al=0.184,be=0.000402,mutRate=1e-8):
         self.mutRate = mutRate
         self.mutRatesGam = {}
+        self.relNumMuts = {}
         self.N = N
         self.I0 = I0
         self.I1 = I1
@@ -104,6 +102,16 @@ class SimulateEpi():
             prev = nextVal
         self.mutRatesGam = mutRatesGam
 
+    def relNumMutsGamma(self,sMin,sMax,step):
+        allVars = 0
+        for s in np.arange(sMin,sMax,step):
+            SFS = self.DiscSFSSelNegNotNorm(-s,self.N)
+            tot = np.sum(SFS)
+            self.relNumMuts[abs(round(s,15))] = tot
+            allVars += tot
+        for val in self.relNumMuts:
+            self.relNumMuts[val] /= tot
+ 
     # get effect sizes and frequencies for mutations, sampling from SFS at equil
     # this sampling is currently WRONG -- need to condition on being polymorhpic
     def initPop(self):
@@ -274,7 +282,8 @@ class SimulateEpi():
         normSFS = self.DiscSFSSelNeg(s)  
         SFS = self.DiscSFSSelNegNotNorm(s,self.N)  
         rHom = self.tradeOffRidge(s,sHalf,scale)
-        rHet = self.rec - (self.rec - rHom)/2
+        #rHet = self.rec - (self.rec - rHom)/2
+        rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
         muHom = (self.mu+self.rec)-rHom      
         muHet = (self.mu+self.rec)-rHet      
 
@@ -295,6 +304,7 @@ class SimulateEpi():
        
         Nfix = 2*self.N*self.mutRate*self.fixProb(s,1./(2*self.N))
         for i in np.arange(1./(2.*self.N),1.,1./(2.*self.N)):
+            # first compute the epi model
             S0 = i**2
             S1 = 2*i*(1-i)
             S2 = (1-i)**2
@@ -302,18 +312,45 @@ class SimulateEpi():
             Sf = self.dipGenoFreqFinal(S,beta,mu,r,0)
             Xf = Sf**0.5
             fNew[j] = Xf
+
+            #next compute the change in the fix prob weighted by the number of alleles at this freq
             pChange[j] = self.deltaFixProb(s,i,Xf)
-            pNorm[j] = self.fixProb(s,i)
             pChangeWeightSFS[j] = pChange[j]*normSFS[j]
-            pWeightSFS[j] = pNorm[j]*normSFS[j]
+            
             j += 1        
 
         totAdd = np.sum(pChangeWeightSFS)
-        totOrig = np.sum(pWeightSFS)
 
-        relRate = (totAdd+totOrig)/(totOrig)
+        #relRate = (totAdd+totOrig)/(totOrig)
 
-        return [self.mutRatesGam[abs(round(s,15))]*totAdd,self.mutRatesGam[abs(round(s,15))]*self.fixProb(s,1./(self.N*2.))*self.L*self.mutRate*2*self.N]
+        return [self.mutRatesGam[abs(round(s,15))]*self.relNumMuts[abs(round(s,15))]*totAdd,self.mutRatesGam[abs(round(s,15))]*self.fixProb(s,1./(self.N*2.))*self.mutRate*2*self.N*self.L,self.mutRatesGam[abs(round(s,15))]*self.relNumMuts[abs(round(s,15))]]
+
+    def maxAlpha(self,sThresh,sMin,sMax,step):
+    
+        # get gamma mutation rates
+        self.mutRatesGamma(sMin,sMax,step)
+
+        # calc substitution rate for all s, just pFix*mutRate*2N
+        subs = 0
+        subsRateAbove = 0
+        segSites = 0
+        segSitesAbove = 0
+        mutRateAbove = 0
+        for s in np.arange(sMin,sMax,step):
+            subs += self.fixProb(s,1./(2.*self.N))*self.mutRate*2*self.N*self.mutRatesGam[abs(round(s,15))]
+            segSites += self.totSites(s,self.N)*self.mutRatesGam[abs(round(s,15))]
+            if s >= sThresh:
+                subsRateAbove += self.fixProb(s,1./(2.*self.N))*self.mutRate*2*self.N*self.mutRatesGam[abs(round(s,15))]
+                segSitesAbove += self.totSites(s,self.N)*self.mutRatesGam[abs(round(s,15))]
+                mutRateAbove += self.mutRate*2*self.N*self.mutRatesGam[abs(round(s,15))]
+        print(subs)
+        print(subsRateAbove)
+        print(segSites)
+        print(segSitesAbove)
+
+        alphaMax = ((mutRateAbove*segSitesAbove/segSites)-subsRateAbove)/(subs+(mutRateAbove*segSitesAbove/segSites)-subsRateAbove)
+
+        return(alphaMax)
 
     def fixProb(self,s,f):
         """
@@ -329,7 +366,7 @@ class SimulateEpi():
         for i in range(1,2*self.N):
             sfs[i/(2.*N)] = 0.
          
-        #burn in
+        # burn in
 
         # add new mutations
 
@@ -342,11 +379,4 @@ class SimulateEpi():
         # compute number of fixations
         
         return
- 
-    #def fixProb(self,f):
-    #    """
-    #    fixation probability of a selected allele
-    #    """
-    #    return (1-mpmath.exp(-2*self.N*self.effects[self.resi]*f))/(1-mpmath.exp(-2*self.N*self.effects[self.resi]))
-
 
