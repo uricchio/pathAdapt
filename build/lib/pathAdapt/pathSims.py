@@ -52,6 +52,11 @@ class SimulateEpi():
         self.sfs = []
         self.gridSize = 0.01
         self.theta = 4*N*mutRate
+        self.useLimFreqs = True
+        small_freqs = np.arange(1./(2.*self.N),0.01,1./(2.*self.N))
+        big_freqs = np.arange(0.01,1,0.01)
+        self.freqs = np.concatenate([small_freqs,big_freqs])
+    
 
     # kimura SFS NOT normalized
     def kimuraSFS(self,s,x):
@@ -67,48 +72,55 @@ class SimulateEpi():
     def DiscSFSSelGam(self):
         NN = int(round(2*self.N))
         dFunc = np.vectorize(self.fullNeg)
+        freqs = []
+        if self.useLimFreqs:
+            return dFunc([i/(NN+0.) for i in self.freqs])
         return dFunc([i/(NN+0.) for i in range(1,NN)])
    
     # FULL sfs over all frequencies, for single s
     def DiscSFSSelNeg(self,s):
         NN = int(round(2*self.N))
         dFunc = np.vectorize(self.kimuraSFS)
-        a = dFunc(s,[i/(NN+0.) for i in range(1,NN)])
+        a = []
+        if self.useLimFreqs:
+            a = dFunc(s,self.freqs)
+        else:
+            a = dFunc(s,[i/(NN+0.) for i in range(1,NN)])
         b = np.sum(a)
         return np.divide(a,b)
 
     def DiscSFSSelNegNotNorm(self,s,N):
         NN = 2*N
         dFunc = np.vectorize(self.kimuraSFS)
-        a = dFunc(s,[i/(NN+0.) for i in range(1,NN)])
+        if self.useLimFreqs:
+            a= dFunc(s,self.freqs)
+        else:
+            a = dFunc(s,[i/(NN+0.) for i in range(1,NN)])
         return a
 
-    def DiscSFSSelNegFreq(self,s,j):
-        NN = int(round(2*self.N))
-        dFunc = np.vectorize(self.kimuraSFS)
-        a = dFunc(s,[i/(NN+0.) for i in range(1,NN)])
-        b = np.sum(a)
-        return np.divide(a,b)[j]
-
-    def mutRatesGamma(self,sMin,sMax,step):
+    def mutRatesGamma(self,sMin,sMax,fac):
         # everything relative to human anc pop size
         prev = gamma.cdf(sMin,a=self.al,scale=1/(2.*10000*self.be))       
         mutRatesGam = {}
         mutRatesGam[sMin] = prev
         
-        for s in np.arange(sMin+step,sMax,step):
+        s = sMin*fac
+        while s < sMax:
             nextVal = gamma.cdf(s,a=self.al,scale=1/(2.*10000*self.be))
             mutRatesGam[round(s,15)] = nextVal - prev
             prev = nextVal
+            s *= fac
         self.mutRatesGam = mutRatesGam
 
-    def relNumMutsGamma(self,sMin,sMax,step):
+    def relNumMutsGamma(self,sMin,sMax,fac):
         allVars = 0
-        for s in np.arange(sMin,sMax,step):
+        s = sMin
+        while s < sMax:
             SFS = self.DiscSFSSelNegNotNorm(-s,self.N)
             tot = np.sum(SFS)
             self.relNumMuts[abs(round(s,15))] = tot
             allVars += tot
+            s *= fac
         for val in self.relNumMuts:
             self.relNumMuts[val] /= tot
  
@@ -128,7 +140,6 @@ class SimulateEpi():
          for i in range(0,self.L):
             self.effects[i] = s
             self.muts[i] = f*2.*self.N
-
 
     # need a function to define how the tradeOff works
     # i.e., transform costs into potential benefits during infection
@@ -278,6 +289,9 @@ class SimulateEpi():
         6. sum over change in prob fix * SFS for each freq
         7. return
         """
+        # making sure s i neg
+        s = -1.*abs(s)
+
         # get SFS and rec for tradeoff
         normSFS = self.DiscSFSSelNeg(s)  
         SFS = self.DiscSFSSelNegNotNorm(s,self.N)  
@@ -297,13 +311,31 @@ class SimulateEpi():
         #get frequency change
         fNew = np.zeros(2*self.N-1)
         pChange = np.zeros(2*self.N-1)
-        pNorm = np.zeros(2*self.N-1)
         pChangeWeightSFS = np.zeros(2*self.N-1)
-        pWeightSFS = np.zeros(2*self.N-1)
-        j = 0
+
+        # prob of sampling selection coeff s
+        sProbs = []
+        sProbLoc = {}
+        i = 0
+        val = 0
+        tot = 0
+        for sVal in self.mutRatesGam:
+            val = self.mutRatesGam[sVal]*self.relNumMuts[sVal]
+            tot += val
+            sProbs.append(val)
+            sProbLoc[sVal] = i
+            i += 1
+
+        for j in range(len(sProbs)):
+            sProbs[j]/=tot
        
-        Nfix = 2*self.N*self.mutRate*self.fixProb(s,1./(2*self.N))
-        for i in np.arange(1./(2.*self.N),1.,1./(2.*self.N)):
+        # get freqs to loop over
+        small_freqs = np.arange(1./(2.*self.N),0.01,1./(2.*self.N))
+        big_freqs = np.arange(0.01,1,0.01)
+        freqs = np.concatenate([small_freqs,big_freqs])
+        j = 0
+        # main calc loop
+        for i in freqs:
             # first compute the epi model
             S0 = i**2
             S1 = 2*i*(1-i)
@@ -323,34 +355,7 @@ class SimulateEpi():
 
         #relRate = (totAdd+totOrig)/(totOrig)
 
-        return [self.mutRatesGam[abs(round(s,15))]*self.relNumMuts[abs(round(s,15))]*totAdd,self.mutRatesGam[abs(round(s,15))]*self.fixProb(s,1./(self.N*2.))*self.mutRate*2*self.N*self.L,self.mutRatesGam[abs(round(s,15))]*self.relNumMuts[abs(round(s,15))]]
-
-    def maxAlpha(self,sThresh,sMin,sMax,step):
-    
-        # get gamma mutation rates
-        self.mutRatesGamma(sMin,sMax,step)
-
-        # calc substitution rate for all s, just pFix*mutRate*2N
-        subs = 0
-        subsRateAbove = 0
-        segSites = 0
-        segSitesAbove = 0
-        mutRateAbove = 0
-        for s in np.arange(sMin,sMax,step):
-            subs += self.fixProb(s,1./(2.*self.N))*self.mutRate*2*self.N*self.mutRatesGam[abs(round(s,15))]
-            segSites += self.totSites(s,self.N)*self.mutRatesGam[abs(round(s,15))]
-            if s >= sThresh:
-                subsRateAbove += self.fixProb(s,1./(2.*self.N))*self.mutRate*2*self.N*self.mutRatesGam[abs(round(s,15))]
-                segSitesAbove += self.totSites(s,self.N)*self.mutRatesGam[abs(round(s,15))]
-                mutRateAbove += self.mutRate*2*self.N*self.mutRatesGam[abs(round(s,15))]
-        print(subs)
-        print(subsRateAbove)
-        print(segSites)
-        print(segSitesAbove)
-
-        alphaMax = ((mutRateAbove*segSitesAbove/segSites)-subsRateAbove)/(subs+(mutRateAbove*segSitesAbove/segSites)-subsRateAbove)
-
-        return(alphaMax)
+        return [sProbs[sProbLoc[abs(round(s,15))]]*totAdd,self.mutRatesGam[abs(round(s,15))]*self.fixProb(s,1./(self.N*2.))*self.mutRate*2*self.N*self.L,sProbs[sProbLoc[abs(round(s,15))]]]
 
     def fixProb(self,s,f):
         """
@@ -358,25 +363,88 @@ class SimulateEpi():
         """
         return (1-mpmath.exp(-4*self.N*s*f))/(1-mpmath.exp(-4*self.N*s))
  
-    def stochSim(self, s, pEpi):
+    def fixProbBack(self):
+  
+        tot = 0
+        for val in self.mutRatesGam:
+            tot += self.mutRatesGam[val]*2*self.N*self.mutRate*self.L*self.fixProb(-val,1./(2*self.N))
+        return tot
 
-        # first get standing frequency spectrum
-        sfs = dict()
-        numSites = 10000
-        for i in range(1,2*self.N):
-            sfs[i/(2.*N)] = 0.
-         
-        # burn in
+    def stochSim(self, pEpi, nGen, sMin, sMax, step, sHalf, scale):
 
-        # add new mutations
+        self.mutRatesGamma(sMin,sMax,step) 
+        self.relNumMutsGamma(sMin,sMax,step) 
 
-        # check whehter there is an epidemic with standing resistance allele
-         
-        # if yes, next randomly sample resitance allele from freq spec, compute change in freq
+        print("here")
 
-        # randomly sample allele freqs
-       
-        # compute number of fixations
+        # make array that samples over the prob of getting a particular s
+        sProbs = []
+        sProbLoc = {}
+        i = 0
+        val = 0
+        tot = 0
+        for s in self.mutRatesGam:
+            val = self.mutRatesGam[s]*self.relNumMuts[s]
+            tot += val
+            sProbs.append(val)
+            sProbLoc[i] = s
+            i += 1      
         
-        return
+        for j in range(len(sProbs)):
+            sProbs[j]/=tot
+
+        # get background fix per gen
+        rate = self.fixProbBack()
+
+        # check how many epidemics happen this gen
+        def getNumEpi(p):
+            return np.random.poisson(p)        
+
+        # get freq and s for effect allele
+        def getSAndX():
+            index = np.random.choice(len(sProbs), p=sProbs)
+            s = sProbLoc[index]
+            SFS = self.DiscSFSSelNeg(-s)
+            index = np.random.choice(len(SFS), p=SFS)
+            x = (index+1)/(2*self.N)           
+          
+            return -1*abs(s),x   
+        
+        # main loop
+        totBack = 0
+        totAdd = 0
+        totMaxAdd = 0
+        for gen in range(0,nGen):
+            numEpi = getNumEpi(pEpi)
+            while numEpi > 0:
+                s,x = getSAndX()           
+             
+                # get params
+                rHom = self.tradeOffRidge(s,sHalf,scale)
+                #rHet = self.rec - (self.rec - rHom)/2
+                rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
+                muHom = (self.mu+self.rec)-rHom
+                muHet = (self.mu+self.rec)-rHet
+
+                # get other betas and mu values
+                lamb = self.beta/(self.rec+self.mu)
+
+                beta = [self.beta,self.beta,self.beta]
+                r = [rHom,rHet,self.rec]
+                mu = [muHom,muHet,self.mu]
+
+                S0 = x**2
+                S1 = 2*x*(1-x)
+                S2 = (1-x)**2
+                S = [S0,S1,S2]
+                Sf = self.dipGenoFreqFinal(S,beta,mu,r,0)
+                Xf = Sf**0.5
+                pfixDiff = self.fixProb(s,Xf)-self.fixProb(s,x) 
+                if np.random.random() < pfixDiff:
+                    totAdd += 1
+                totMaxAdd += 1-self.fixProb(s,x)
+                numEpi -= 1
+            totBack += rate
+
+        return [totAdd/(totAdd+totBack),totMaxAdd/(totMaxAdd+totBack),totAdd, totBack]
 
