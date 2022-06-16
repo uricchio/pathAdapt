@@ -3,13 +3,13 @@ import numpy as np
 import sys
 
 L = 5*10**6
-p = 1  # epi per gen in 10**4 pop size
+p = 10  # epi per gen in 10**4 pop size
 
 sMin = 0.00001
 sMax = 0.01
 fac = 1.1
 
-epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.008,mu=0.73,rec=0.23,L=L,mutRate = 2.5e-8)
+epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.2,mu=0.95,rec=0.05,L=L,mutRate = 2.5e-8)
 #epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.01,mu=0.003,rec=0.23,,L=L,mutRate = 2.5e-8)
 totBackground = 0
 totEpiAdd = 0
@@ -35,7 +35,7 @@ while s > -sMax:
 
     totEpiAddMax += De[2] 
  
-    print(De[1],De[0],De[2])
+    #print(De[1],De[0],De[2])
     
     # number of seg sites calc
     #kN += epiSim.mutRatesGam[round(abs(s),15)]*epiSim.totSites(s,int(sys.argv[1]))

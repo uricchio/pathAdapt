@@ -56,7 +56,6 @@ class SimulateEpi():
         small_freqs = np.arange(1./(2.*self.N),0.01,1./(2.*self.N))
         big_freqs = np.arange(0.01,1,0.01)
         self.freqs = np.concatenate([small_freqs,big_freqs])
-    
 
     # kimura SFS NOT normalized
     def kimuraSFS(self,s,x):
@@ -261,6 +260,8 @@ class SimulateEpi():
         """
         returns the change in fixation probability for an allele that goes from xi to xf
         """
+        if abs(s*self.N) > 50:
+            return 0.
         return (math.exp(-4*self.N*s*xi)-math.exp(-4*self.N*s*xf))/(1-math.exp(-4*self.N*s))
  
     def tradeOffRidge(self,s,sHalf,scale):
@@ -370,12 +371,10 @@ class SimulateEpi():
             tot += self.mutRatesGam[val]*2*self.N*self.mutRate*self.L*self.fixProb(-val,1./(2*self.N))
         return tot
 
-    def stochSim(self, pEpi, nGen, sMin, sMax, step, sHalf, scale):
+    def stochSim(self, pEpi, nGen, sMin, sMax, fac, sHalf, scale):
 
-        self.mutRatesGamma(sMin,sMax,step) 
-        self.relNumMutsGamma(sMin,sMax,step) 
-
-        print("here")
+        self.mutRatesGamma(sMin,sMax,fac) 
+        self.relNumMutsGamma(sMin,sMax,fac) 
 
         # make array that samples over the prob of getting a particular s
         sProbs = []
@@ -446,5 +445,59 @@ class SimulateEpi():
                 numEpi -= 1
             totBack += rate
 
-        return [totAdd/(totAdd+totBack),totMaxAdd/(totMaxAdd+totBack),totAdd, totBack]
+        totBackRand = np.random.poisson( totBack) 
 
+        return [totAdd/(totAdd+totBackRand),totMaxAdd/(totMaxAdd+totBackRand),totAdd, totBackRand]
+
+    def simTraj(self,s,x,maxF):
+        x0 = x
+        traj = [x]
+        while x > 0 and x < maxF:
+            next_gen = np.random.binomial(2*self.N,p=(1+s)*x)
+            x = next_gen/(2.*self.N)
+            if x == 0.:
+                traj = []
+                x = x0 
+            traj.append(x)
+        return traj
+
+    def simTrajFinal(self,s,x):
+        x0 = x
+        traj = [x]
+        while x > 0 and x < 1:
+            next_gen = np.random.binomial(2*self.N,p=(1+s)*x)
+            x = next_gen/(2.*self.N)
+            traj.append(x)
+        return traj
+
+    def genSingleEvoEpi(self,s,f,sHalf,scale):
+       
+        traj = self.simTraj(s,f,0.5)
+        
+        x = traj[-1]
+        S0 = x**2
+        S1 = 2*x*(1-x)
+        S2 = (1-x)**2
+        S = [S0,S1,S2]
+        
+        rHom = self.tradeOffRidge(s,sHalf,scale)
+        #rHet = self.rec - (self.rec - rHom)/2
+        rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
+        muHom = (self.mu+self.rec)-rHom
+        muHet = (self.mu+self.rec)-rHet
+
+        # get other betas and mu values
+        lamb = self.beta/(self.rec+self.mu)
+
+        beta = [self.beta,self.beta,self.beta]
+        r = [rHom,rHet,self.rec]
+        mu = [muHom,muHet,self.mu]
+        
+        Sf = self.dipGenoFreqFinal(S,beta,mu,r,0)
+        Xf = Sf**0.5
+
+        print("#"+str(len(traj)))
+
+        traj.extend(self.simTrajFinal(s,Xf))
+
+        return traj
