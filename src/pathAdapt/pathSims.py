@@ -157,84 +157,63 @@ class SimulateEpi():
         self.res[i] = 1
         self.resi = i
   
-    def initInfect(self, effect):
-        totalProp = self.S0*self.beta+self.S1*self.tradeOff(effect)+self.S2*0.5*self.tradeOff(effect)
-        if totalProp == 0.:
-            totalProp = self.S1+self.S2+self.S0
-            self.I0 = self.S0/totalProp
-            self.I1 = self.S1/totalProp
-            self.I2 = self.S2/totalProp
-            return
-        self.I0 = self.S0*self.beta/totalProp
-        self.I1 = self.S1*self.tradeOff(effect)/totalProp
-        self.I2 = self.S2*0.5*self.tradeOff(effect)/totalProp
-
     # simulate an epidemic, given the frequencies of the res alleles
-    def determSim(self):
+    def determSim(self,p=0.5,s=-0.001,sHalf=0.00005,scale=1):
  
-        #sample resistance allele
-        self.sampleRes()
+        rHom = self.tradeOffRidge(s,sHalf,scale)
+        rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
+        muHom = (self.mu+self.rec)-rHom
+        muHet = (self.mu+self.rec)-rHet
 
-        # first, get afs of resistance alleles
-        afs = []
-        for i in range(0,len(self.muts)):
-            if self.res[i]:
-                afs.append([self.muts[i],self.effects[i]])
-                #afs.append([50,-0.01])
+        betaVec = [self.beta, self.beta, self.beta]
+        rVec = [self.rec,rHet,rHom]
+        muVec = [self.mu,muHet,muHom]        
+        
+        # initialize infected
+        self.I0 = 1
+        self.I1 = 0
+        self.I2 = 0
 
         # need to consider how to account for diploid state here -- 3 classes for 0,1,2 copies of derived allele
-        p = afs[0][0]/(2.*self.N)
         self.S2 = int(math.floor(p**2*self.N))
         self.S1 = int(math.ceil(2*p*(1-p)*self.N))-self.I1-self.I0 
         self.S0 = max(0,self.N-(self.S1+self.I0+self.I1+self.S2+self.I2))
 
-        effect = afs[0][1]
-        self.initInfect(effect)
-
-        #print(self.S0,self.S1,self.S2,self.I0,self.I1,self.I2,self.N)
-
-        #print (self.N, self.I0, self.I1, self.I2, self.R0, self.R1, self.R2, self.S0, self.S1, self.S2, self.I0+self.I1+self.R0+self.R1+self.S0+self.S1+self.S2+self.I2+self.R2)
-
         # differential eqns
-        def SIR(t, z, mu, beta0, beta1, r):
+        def SIR(t, z, mu, r, beta):
             I0, I1, I2, S0, S1, S2, R0, R1, R2, N = z
-            return [-r*I0-mu*I0+S0*beta0*(I0+I1+I2),-r*I1-mu*I1+S1*beta1*(I0+I1+I2), -r*I2-mu*I2+S2*0.5*beta1*(I0+I1+I2),
-                     -S0*beta0*(I0+I1+I2), -S1*beta1*(I0+I1+I2), -S2*0.5*beta1*(I0+I1+I2),
-                      r*I0, r*I1, r*I2,
-                      -mu*(I0+I1+I2)]
+            return [-r[0]*I0-mu[0]*I0+S0*beta[0]*(I0+I1+I2),-r[1]*I1-mu[1]*I1+S1*beta[1]*(I0+I1+I2), -r[2]*I2-mu[2]*I2+S2*beta[2]*(I0+I1+I2),
+                     -S0*beta[0]*(I0+I1+I2), -S1*beta[1]*(I0+I1+I2), -S2*beta[2]*(I0+I1+I2),
+                      r[0]*I0, r[1]*I1, r[2]*I2,
+                      -mu[0]*I0-mu[1]*I1-mu[2]*I2]
      
         radius = 1
-        tmax = 25
+        tmax = 5
         while radius > 1e-5:
             tmax *= 2
             sol = solve_ivp(SIR, [0, tmax], [self.I0, self.I1, self.I2, self.S0, self.S1, self.S2, self.R0, self.R1, self.R2, self.N], 
-                            args=(self.mu, self.beta, self.tradeOff(afs[0][1]), self.rec), dense_output=True)
+                            args=(muVec, rVec, betaVec), dense_output=True)
             t0 = np.linspace(0, tmax, 1000)
-            radius = sum(np.absolute(SIR(tmax,np.transpose(sol.sol(t0))[-1],self.mu, self.beta, self.tradeOff(afs[0][1]), self.rec)))
+            radius = sum(np.absolute(SIR(tmax,np.transpose(sol.sol(t0))[-1],muVec, rVec, betaVec)))
 
-        RecCop = sol.sol(t0)[7][-1]+2*sol.sol(t0)[8][-1]
-        SusCop = sol.sol(t0)[4][-1]+2*sol.sol(t0)[5][-1]
-        InfCop = sol.sol(t0)[1][-1]+2*sol.sol(t0)[2][-1]
-
-        newFreq = (InfCop+RecCop+SusCop)/(2*sol.sol(t0)[9][-1])
-        origFreq = afs[0][0]/(2.*self.N)
-  
-        origPFix = self.fixProb(origFreq) 
-        newPFix = self.fixProb(newFreq)   
-
-        #print  (RecCop,SusCop,InfCop,sol.sol(t0)[9][-1]) 
-
-        print(afs[0][0]/(2.*self.N),(InfCop+RecCop+SusCop)/(2*sol.sol(t0)[9][-1]),sol.sol(t0)[9][-1],afs[0][1],origPFix,newPFix,newPFix-origPFix,self.beta, self.tradeOff(afs[0][1]),self.sfs[int(round(afs[0][0]))-1])
-
-        return (newPFix-origPFix)
-
-    """ 
-    write:
-        1. function that computes final frequency per allele given starting x and beta
-        2. funtion that computes allele frequency spectrum for allele with coefficient s
-        3. function that integrates over all s(beta) for a particular tradeoff function to get De
-        4. function that stochastically simulates sampling of alleles per generation
-    """
+        names = {}
+        names[0] = "I0"
+        names[1] = "I1"
+        names[2] = "I2"
+        names[3] = "S0"
+        names[4] = "S1"
+        names[5] = "S2"
+        names[6] = "R0"
+        names[7] = "R1"
+        names[8] = "R2"
+        names[9] = "N"
+   
+        for i in range(len(sol.sol(t0)[:-1])):
+            j = 0
+            for t in range(len(sol.sol(t0)[i])):
+                print(sol.sol(t0)[i][t],t0[j], names[i])
+                j += 1        
+        return        
 
     def RStarFinal(self,beta,mu,r):
         lamb = beta[0]/(r[0]+mu[0]) 
