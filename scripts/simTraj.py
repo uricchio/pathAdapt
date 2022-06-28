@@ -9,7 +9,7 @@ sMin = 0.00001
 sMax = 0.01
 fac = 1.1
 
-epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.2,mu=0.95,rec=0.05,L=L,mutRate = 2.5e-8)
+epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.002,mu=0.95,rec=0.05,L=L,mutRate = 2.5e-8)
 #epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.01,mu=0.003,rec=0.23,,L=L,mutRate = 2.5e-8)
 totBackground = 0
 totEpiAdd = 0
