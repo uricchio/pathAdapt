@@ -10,6 +10,10 @@ rec = float(sys.argv[3])
 sHalf = float(sys.argv[4])
 scale = float(sys.argv[5])
 
+if len(sys.argv) < 6:
+    print("usage: python", sys.argv[0], "<populationSize> <deathRate> <recoveryRate> <sHalf> <scale>")
+    exit() 
+
 # these params determine the grid of selection strengths over which we will compute
 sMin = 0.000001
 sMax = 0.1
