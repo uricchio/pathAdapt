@@ -5,11 +5,17 @@ import sys
 L = 5*10**6
 p = 10  # epi per gen in 10**4 pop size
 
-sMin = 0.00001
-sMax = 0.01
+mu = float(sys.argv[2])
+rec = float(sys.argv[3])
+sHalf = float(sys.argv[4])
+scale = float(sys.argv[5])
+
+# these params determine the grid of selection strengths over which we will compute
+sMin = 0.000001
+sMax = 0.1
 fac = 1.1
 
-epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.2,mu=0.95,rec=0.05,L=L,mutRate = 2.5e-8)
+epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.2,mu=mu,rec=rec,L=L,mutRate = 2.5e-8)
 #epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.01,mu=0.003,rec=0.23,,L=L,mutRate = 2.5e-8)
 totBackground = 0
 totEpiAdd = 0
@@ -25,7 +31,7 @@ epiSim.relNumMutsGamma(sMin,sMax,fac)
 
 s = -sMin
 while s > -sMax:
-    De = epiSim.fixOverAllFreq(s,0.00005,1)
+    De = epiSim.fixOverAllFreq(s,sHalf,scale)
     
     # total number of expected fixations per gen over all seg. sites in absence of epi
     totBackground += De[1]

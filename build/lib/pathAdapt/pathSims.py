@@ -256,7 +256,6 @@ class SimulateEpi():
         for thing in standingSFS:
             tot += thing
         return (thing*self.theta*self.L)
-        
 
     def fixOverAllFreq(self,s,sHalf,scale):
         """
@@ -332,8 +331,6 @@ class SimulateEpi():
             j += 1        
 
         totAdd = np.sum(pChangeWeightSFS)
-
-        #relRate = (totAdd+totOrig)/(totOrig)
 
         return [sProbs[sProbLoc[abs(round(s,15))]]*totAdd,self.mutRatesGam[abs(round(s,15))]*self.fixProb(s,1./(self.N*2.))*self.mutRate*2*self.N*self.L,sProbs[sProbLoc[abs(round(s,15))]]]
 

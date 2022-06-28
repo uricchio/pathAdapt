@@ -35,11 +35,11 @@ plC<-ggplot(simEpiT,aes(V2,V1,group=V3,fill=V3))+geom_area()+scale_fill_manual(v
 
 plBC<-plot_grid(plB,plC,labels=c("B","C"),ncol=1)
 
-plABC<-plot_grid(plA,plBC,labels=c("A",""),ncol=2)
+plABC<-plot_grid(plA,plBC,labels=c("A",""),ncol=2,rel_widths=c(1,1.3))
 
 plABC
 
-ggsave("~/projects/pathAdapt/figures/conceptFig.pdf",plABC,height=5,width=11)
+ggsave("~/projects/pathAdapt/figures/conceptFig.pdf",plABC,height=5,width=14)
 
 
 
