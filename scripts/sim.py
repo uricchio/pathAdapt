@@ -2,6 +2,11 @@ from pathAdapt import pathSims
 import numpy as np
 import sys
 
+if len(sys.argv) < 6:
+    print("usage: python", sys.argv[0], "<populationSize> <deathRate> <recoveryRate> <sHalf> <scale>")
+    exit() 
+
+
 L = 5*10**6
 p = 10  # epi per gen in 10**4 pop size
 
@@ -9,10 +14,6 @@ mu = float(sys.argv[2])
 rec = float(sys.argv[3])
 sHalf = float(sys.argv[4])
 scale = float(sys.argv[5])
-
-if len(sys.argv) < 6:
-    print("usage: python", sys.argv[0], "<populationSize> <deathRate> <recoveryRate> <sHalf> <scale>")
-    exit() 
 
 # these params determine the grid of selection strengths over which we will compute
 sMin = 0.000001
