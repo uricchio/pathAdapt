@@ -14,7 +14,7 @@ dfSev<-cbind(sevAl,data.frame(label=rep("severe",length(sevAl$V1))))
 
 dfAll<-rbind(dfNeut,dfDim,dfSev)
 
-plA<-ggplot(dfAll,aes(V4,V1,col=label))+geom_point()+geom_line()+scale_y_log10(name=expression(italic(alpha)),breaks=c(1e-6,3e-6,1e-5,3e-5,1e-4,3e-4,1e-3,3e-3,1e-2,3e-2,1e-1,3e-1),labels = scales::scientific)+xlab(expression(italic(mu) * " (death rate)"))+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+plA<-ggplot(dfAll,aes(V4,V1,col=label))+geom_point()+geom_line()+scale_y_log10(name=expression(italic(alpha)),breaks=c(1e-6,3e-6,1e-5,3e-5,1e-4,3e-4,1e-3,3e-3,1e-2,3e-2,1e-1,3e-1,1),labels = scales::scientific)+xlab(expression(italic(mu) * " (death rate)"))+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.position="none")+scale_color_manual(values=wes_palette("Darjeeling1"),name="Model")
 
 # plB, per s site

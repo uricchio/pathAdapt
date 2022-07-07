@@ -1,0 +1,30 @@
+This code does calculations and simulations under a model of density-dependent disease
+with genotype-dependent mortality/recovery tradeoffs. It also simulates the evolutionary 
+consequences of these epidemics by calculating changes in the fixation rate of deleterious
+disease resitance alleles.
+
+The code is wirtten in Python and can be installed by running:
+
+python setup.py install --user
+
+from the top directory. Simulation scripts are contained in the scripts directory. 
+
+Remaking our figures:
+
+Figure 1 is a concept figure, it contains a "real" simulation but is intended only
+to illustrate our model.
+
+Figure 2 does not contain any external data and can be remade with the scripts/Fig2.R
+
+Figure 3 data can be remade by running scripts/makeFig3Data.sh from the top level directory
+(./scripts/makeFig3Data.sh). The code for the figure is in Fig3.R
+
+Figure 4 data can be remade by running scripts/makeTradeOffAlphas.sh and scripts/make.perS.sh from 
+the top level directory. The code for the figure is in scripts/Fig4.R
+
+Figure 5 data can be remade by running scripts/makeFig5Data.sh from the top level directory.
+The code for the figure is in scripts/Fig5.R
+
+
+
+

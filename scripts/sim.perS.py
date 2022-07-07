@@ -41,22 +41,19 @@ while s > -sMax:
     De = epiSim.fixOverAllFreq(s,sHalf,scale)
     
     # total number of expected fixations per gen over all seg. sites in absence of epi
-    totBackground += De[1]
+    totBackground = De[1]
 
     # total number of additional fixations per gen with 1 standing resis variant
-    totEpiAdd += De[0]
-    totEpiAddMax += De[2] 
+    totEpiAdd = De[0]
+    totEpiAddMax = De[2] 
  
     svals.append([s,(((p*(kN/k10000)*totEpiAdd)+totBackground)/epiSim.mutRatesGam[round(abs(s),15)])-(totBackground/epiSim.mutRatesGam[round(abs(s),15)])])
    
     s *= fac
 
-#for i in range(len(svals)):
-#    svals[i][1] /= totEpiAdd
-
+# print out all of the difference in subs rate data
 for s in svals:
     for thing in s:
         print(thing,end=' ')
     print()
 
-#print((p*(kN/k10000)*totEpiAdd)/(totBackground),(p*(kN/k10000)*totEpiAddMax)/(totBackground+p*(kN/k10000)*totEpiAddMax),sys.argv[1],mu,sHalf)
