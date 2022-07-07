@@ -18,10 +18,10 @@ scale = float(sys.argv[4])
 
 # these params determine the grid of selection strengths over which we will compute
 sMin = 0.000000001
-sMax = 0.5
+sMax = 0.005
 fac = 1.1
 
-epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.05,mu=mu,rec=rec,L=L,mutRate = 2.5e-8)
+epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.0005,mu=mu,rec=rec,L=L,mutRate = 2.5e-8)
 #epiSim = pathSims.SimulateEpi(N=int(sys.argv[1]),beta=0.01,mu=0.003,rec=0.23,,L=L,mutRate = 2.5e-8)
 totBackground = 0
 totEpiAdd = 0
@@ -36,6 +36,7 @@ epiSim.mutRatesGamma(sMin,sMax,fac)
 epiSim.relNumMutsGamma(sMin,sMax,fac)
 
 s = -sMin
+svals = []
 while s > -sMax:
     De = epiSim.fixOverAllFreq(s,sHalf,scale)
     
@@ -44,9 +45,18 @@ while s > -sMax:
 
     # total number of additional fixations per gen with 1 standing resis variant
     totEpiAdd += De[0]
-
     totEpiAddMax += De[2] 
  
+    svals.append([s,(((p*(kN/k10000)*totEpiAdd)+totBackground)/epiSim.mutRatesGam[round(abs(s),15)])-(totBackground/epiSim.mutRatesGam[round(abs(s),15)])])
+   
     s *= fac
 
-print((p*(kN/k10000)*totEpiAdd)/(totBackground+p*(kN/k10000)*totEpiAdd),(p*(kN/k10000)*totEpiAddMax)/(totBackground+p*(kN/k10000)*totEpiAddMax),sys.argv[1],mu,sHalf)
+#for i in range(len(svals)):
+#    svals[i][1] /= totEpiAdd
+
+for s in svals:
+    for thing in s:
+        print(thing,end=' ')
+    print()
+
+#print((p*(kN/k10000)*totEpiAdd)/(totBackground),(p*(kN/k10000)*totEpiAddMax)/(totBackground+p*(kN/k10000)*totEpiAddMax),sys.argv[1],mu,sHalf)

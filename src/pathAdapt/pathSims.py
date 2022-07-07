@@ -162,8 +162,10 @@ class SimulateEpi():
  
         rHom = self.tradeOffRidge(s,sHalf,scale)
         rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
+        #rHet = self.rec - (self.rec - rHom)/2
         muHom = (self.mu+self.rec)-rHom
         muHet = (self.mu+self.rec)-rHet
+
 
         betaVec = [self.beta, self.beta, self.beta]
         rVec = [self.rec,rHet,rHom]
@@ -275,10 +277,11 @@ class SimulateEpi():
         normSFS = self.DiscSFSSelNeg(s)  
         SFS = self.DiscSFSSelNegNotNorm(s,self.N)  
         rHom = self.tradeOffRidge(s,sHalf,scale)
+        rHet = self.rec 
         #rHet = self.rec - (self.rec - rHom)/2
-        rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
         muHom = (self.mu+self.rec)-rHom      
         muHet = (self.mu+self.rec)-rHet      
+
 
         # get other betas and mu values
         lamb = self.beta/(self.rec+self.mu)
@@ -396,8 +399,7 @@ class SimulateEpi():
              
                 # get params
                 rHom = self.tradeOffRidge(s,sHalf,scale)
-                #rHet = self.rec - (self.rec - rHom)/2
-                rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
+                rHet = self.rec 
                 muHom = (self.mu+self.rec)-rHom
                 muHet = (self.mu+self.rec)-rHet
 
@@ -457,8 +459,7 @@ class SimulateEpi():
         S = [S0,S1,S2]
         
         rHom = self.tradeOffRidge(s,sHalf,scale)
-        #rHet = self.rec - (self.rec - rHom)/2
-        rHet = self.rec #self.tradeOffRidge(s,sHalf,scale)
+        rHet = self.rec 
         muHom = (self.mu+self.rec)-rHom
         muHet = (self.mu+self.rec)-rHet
 
@@ -477,3 +478,29 @@ class SimulateEpi():
         traj.extend(self.simTrajFinal(s,Xf))
 
         return traj
+
+    def calcXf(self,s,f,sHalf,scale):
+
+        x = f
+        S0 = x**2
+        S1 = 2*x*(1-x)
+        S2 = (1-x)**2
+        S = [S0,S1,S2]
+
+        rHom = self.tradeOffRidge(s,sHalf,scale)
+        rHet = self.rec
+        #rHet = self.rec - (self.rec - rHom)/2
+        muHom = (self.mu+self.rec)-rHom
+        muHet = (self.mu+self.rec)-rHet
+
+        # get other betas and mu values
+        lamb = self.beta/(self.rec+self.mu)
+
+        beta = [self.beta,self.beta,self.beta]
+        r = [rHom,rHet,self.rec]
+        mu = [muHom,muHet,self.mu]
+
+        Sf = self.dipGenoFreqFinal(S,beta,mu,r,0)
+        Xf = Sf**0.5
+
+        return Xf
